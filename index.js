@@ -1,36 +1,18 @@
 const express = require("express");
 const morgan = require("morgan");
-const cors = require('cors')
+require("dotenv").config();
+
+const Person = require("./models/person");
+const cors = require("cors");
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+// const PORT = process.env.PORT || 3001;
 
-const phonebook = [
-  {
-    id: "1",
-    name: "Arto Hellas",
-    number: "040-123456",
-  },
-  {
-    id: "2",
-    name: "Ada Lovelace",
-    number: "39-44-5323523",
-  },
-  {
-    id: "3",
-    name: "Dan Abramov",
-    number: "12-43-234345",
-  },
-  {
-    id: "4",
-    name: "Mary Poppendieck",
-    number: "39-23-6423122",
-  },
-];
+const phonebook = [];
 
-app.use(cors())
+app.use(cors());
 app.use(express.json());
-app.use(express.static('dist'));
+app.use(express.static("dist"));
 
 // Define a custom token to log request body
 morgan.token("body", (req) => JSON.stringify(req.body));
@@ -41,38 +23,30 @@ app.use(
 );
 
 app.get("/api/persons", (req, res) => {
-  res.send(phonebook);
+  Person.find({}).then((persons) => {
+    res.json(persons);
+  });
 });
 
 app.post("/api/persons", (req, res) => {
-    const { name, number } = req.body;
-  
-    // Check if name or number is missing
-    if (!name || !number) {
-      return res.status(400).json({ error: "Name or number is missing" });
-    }
-  
-    // Check for duplicate names
-    const existingPerson = phonebook.find(person => person.name.toLowerCase() === name.toLowerCase());
-    if (existingPerson) {
-      return res.status(400).json({ error: "Name must be unique" });
-    }
-  
-    // Add the new person
-    const newPerson = {
-      id: String(Math.floor(Math.random() * 1000000)), // Generate a random ID
-      name,
-      number,
-    };
-    phonebook.push(newPerson);
-  
-    // Respond with the new person and a 201 Created status
-    return res.status(201).json(newPerson);
+  const { name, number } = req.body;
+
+  // Check if name or number is missing in formdata
+  if (!name || !number) {
+    return res.status(400).json({ error: "Name or number is missing" });
+  }
+  const person = new Person({
+    name,
+    number,
   });
-  
+  person.save().then((savedPerson) => {
+    // Respond with the new person and a 201 Created status
+    return res.status(201).json(savedPerson);
+  });
+});
 
 app.get("/info", (req, res) => {
-  const totalPersons = phonebook.length;
+  const totalPersons = Person.length;
   const currentTime = new Date();
 
   res.send(
@@ -83,30 +57,54 @@ app.get("/info", (req, res) => {
   );
 });
 
-app.get("/api/persons/:id", (req, res) => {
-  const id = req.params.id;
-  const person = phonebook.find((person) => person.id === id);
+const mongoose = require("mongoose");
 
-  if (!person) {
-    return res
-      .status("404")
-      .send("person not available in phonebook, please try again!");
+/* app.get("/api/persons/:id", (req, res) => {
+  const id = req.params.id;
+
+  // Validate ObjectId format
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).send({ error: "Invalid ID format" });
   }
 
-  return res.send(person);
+  // Find the person by ID
+  Person.findById(id)
+    .then((person) => {
+      if (!person) {
+        return res.status(404).send({ error: "Person not found in phonebook" });
+      }
+      res.json(person);
+    })
+    .catch((err) => {
+      console.error(err); // Log the error for debugging
+      res.status(500).send({ error: "An unexpected error occurred" });
+    });
 });
+ */
+
+app.get('/api/persons/:id', (req, res) => {
+    Person.findById(request.params.id).then(person => {
+      response.json(person)
+    })
+  })
 
 app.delete("/api/persons/:id", (req, res) => {
   const id = req.params.id;
-  const person = phonebook.filter((person) => person.id !== id);
 
-  /*     if(!person){
-        return res.status(404).send("person not available in phonebook, please try again!")
-    } */
-
-  return res.status(204).send(`successfully deleted ${person}`);
+  Person.findByIdAndDelete(id)
+    .then((result) => {
+      if (!result) {
+        return res.status(404).send({ error: "Person not found" });
+      }
+      res.status(204).end(); // Successfully deleted
+    })
+    .catch((error) => {
+      console.error(error);
+      res.status(400).send({ error: "Malformed ID or other error" });
+    });
 });
 
+const PORT = process.env.PORT;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
