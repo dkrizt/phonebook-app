@@ -6,9 +6,6 @@ const Person = require("./models/person");
 const cors = require("cors");
 
 const app = express();
-// const PORT = process.env.PORT || 3001;
-
-const phonebook = [];
 
 app.use(cors());
 app.use(express.json());
@@ -22,12 +19,38 @@ app.use(
   morgan(":method :url :status :res[content-length] - :response-time ms :body")
 );
 
+//Request logger replace by morgan tiny
+/* const requestLogger = (request, response, next) => {
+  console.log("Method:", request.method);
+  console.log("Path:  ", request.path);
+  console.log("Body:  ", request.body);
+  console.log("---");
+  next();
+};
+app.use(requestLogger); */
+
+const errorHandler = (error, request, response, next) => {
+  console.error(error.message);
+
+  if (error.name === "CastError") {
+    return response.status(400).send({ error: "malformatted id" });
+  }
+
+  next(error);
+};
+
+const unknownEndpoint = (request, response) => {
+  response.status(404).send({ error: "unknown endpoint" });
+};
+
+//Get all persons in the phonebook
 app.get("/api/persons", (req, res) => {
   Person.find({}).then((persons) => {
     res.json(persons);
   });
 });
 
+//Create a new person and added to the phonebook
 app.post("/api/persons", (req, res) => {
   const { name, number } = req.body;
 
@@ -45,6 +68,7 @@ app.post("/api/persons", (req, res) => {
   });
 });
 
+//Get and display data about the phonebook
 app.get("/info", (req, res) => {
   const totalPersons = Person.length;
   const currentTime = new Date();
@@ -57,17 +81,10 @@ app.get("/info", (req, res) => {
   );
 });
 
-const mongoose = require("mongoose");
-
-/* app.get("/api/persons/:id", (req, res) => {
+//Get the data of a single person in the phonebook by Id
+app.get("/api/persons/:id", (req, res, next) => {
   const id = req.params.id;
 
-  // Validate ObjectId format
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    return res.status(400).send({ error: "Invalid ID format" });
-  }
-
-  // Find the person by ID
   Person.findById(id)
     .then((person) => {
       if (!person) {
@@ -75,20 +92,27 @@ const mongoose = require("mongoose");
       }
       res.json(person);
     })
-    .catch((err) => {
-      console.error(err); // Log the error for debugging
-      res.status(500).send({ error: "An unexpected error occurred" });
-    });
+    .catch(error => next(error))
 });
- */
 
-app.get('/api/persons/:id', (req, res) => {
-    Person.findById(request.params.id).then(person => {
-      response.json(person)
-    })
+//Update a person details that already exists
+app.put('/api/persons/:id', (req, res, next) => {
+    const body = req.body
+  
+    const person = {
+      name: body.name,
+      number: body.number,
+    }
+  
+    Person.findByIdAndUpdate(req.params.id, person, { new: true })
+      .then(updatedPerson => {
+        res.json(updatedPerson)
+      })
+      .catch(error => next(error))
   })
 
-app.delete("/api/persons/:id", (req, res) => {
+//Delete a single person from the phonebook by id
+app.delete("/api/persons/:id", (req, res, next) => {
   const id = req.params.id;
 
   Person.findByIdAndDelete(id)
@@ -98,11 +122,11 @@ app.delete("/api/persons/:id", (req, res) => {
       }
       res.status(204).end(); // Successfully deleted
     })
-    .catch((error) => {
-      console.error(error);
-      res.status(400).send({ error: "Malformed ID or other error" });
-    });
+    .catch(error => next(error))
 });
+
+app.use(unknownEndpoint);
+app.use(errorHandler);
 
 const PORT = process.env.PORT;
 app.listen(PORT, () => {
