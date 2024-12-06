@@ -14,9 +14,24 @@ mongoose.connect(url)
 
 // Define schema and model
 const personSchema = new mongoose.Schema({
-    name: String,
-    number: String,
+    name: {
+      type: String,
+      minLength: 3,
+      required: true,
+    },
+    number: {
+      type: String,
+      validate: {
+        validator: function (v) {
+          // Check for format with regex
+          return /^(\d{2}-\d{6,}|\d{3}-\d{5,})$/.test(v) && v.length >= 8;
+        },
+        message: (props) => `${props.value} is not a valid phone number! Format: XX-XXXXXXX or XXX-XXXXXXXX`,
+      },
+      required: [true, 'User phone number required'],
+    },
   });
+  
 
 personSchema.set('toJSON', {
   transform: (document, returnedObject) => {
