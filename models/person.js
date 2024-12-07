@@ -1,11 +1,12 @@
-const mongoose = require('mongoose');
+const mongoose = require('mongoose')
 
-mongoose.set('strictQuery', false);
+mongoose.set('strictQuery', false)
 
 const url = process.env.MONGODB_URI
 
-mongoose.connect(url)
-  .then(result => {
+mongoose
+  .connect(url)
+  .then(() => {
     console.log('connected to MongoDB')
   })
   .catch((error) => {
@@ -14,31 +15,31 @@ mongoose.connect(url)
 
 // Define schema and model
 const personSchema = new mongoose.Schema({
-    name: {
-      type: String,
-      minLength: 3,
-      required: true,
-    },
-    number: {
-      type: String,
-      validate: {
-        validator: function (v) {
-          // Check for format with regex
-          return /^(\d{2}-\d{6,}|\d{3}-\d{5,})$/.test(v) && v.length >= 8;
-        },
-        message: (props) => `${props.value} is not a valid phone number! Format: XX-XXXXXXX or XXX-XXXXXXXX`,
+  name: {
+    type: String,
+    minLength: 3,
+    required: true,
+  },
+  number: {
+    type: String,
+    validate: {
+      validator: function (v) {
+        // Check for format with regex
+        return /^(\d{2}-\d{6,}|\d{3}-\d{5,})$/.test(v) && v.length >= 8
       },
-      required: [true, 'User phone number required'],
+      message: (props) =>
+        `${props.value} is not a valid phone number! Format: XX-XXXXXXX or XXX-XXXXXXXX`,
     },
-  });
-  
+    required: [true, 'User phone number required'],
+  },
+})
 
 personSchema.set('toJSON', {
   transform: (document, returnedObject) => {
     returnedObject.id = returnedObject._id.toString()
     delete returnedObject._id
     delete returnedObject.__v
-  }
+  },
 })
 
 module.exports = mongoose.model('Person', personSchema)
